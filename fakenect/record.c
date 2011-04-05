@@ -326,8 +326,8 @@ int main(int argc, char **argv)
 		init();
 		free(depth_name);
 		free(rgb_name);
-		if (depth_stream) fclose(depth_stream);
-		if (rgb_stream) fclose(rgb_stream);
+		if (depth_stream) pclose(depth_stream);
+		if (rgb_stream) pclose(rgb_stream);
 		fclose(index_fp);
 	} else {
 		mkdir(out_dir, S_IRWXU | S_IRWXG | S_IRWXO);
