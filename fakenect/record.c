@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <lo/lo.h>
 
 char *out_dir=0;
 volatile sig_atomic_t running = 1;
@@ -47,6 +48,12 @@ char *rgb_name = 0;
 
 FILE *depth_stream=0;
 FILE *rgb_stream=0;
+
+lo_server oscserver=0;
+struct {
+    int take;
+    int frame;
+} framestamp = { 0, 0 };
 
 double get_time()
 {
@@ -174,7 +181,8 @@ void rgb_cb(freenect_device *dev, void *rgb, uint32_t timestamp)
 void depth_cb_ffmpeg(freenect_device *dev, void *depth, uint32_t timestamp)
 {
 	double cur_time = get_time();
-	fprintf(index_fp, "d-%f-%u\n", cur_time, timestamp);
+	fprintf(index_fp, "d-%f-%u-%d-%d\n", cur_time, timestamp,
+            framestamp.take, framestamp.frame);
 
 	dump_ffmpeg_pad16(depth_stream, timestamp, depth,
                       freenect_find_depth_mode(FREENECT_RESOLUTION_MEDIUM,
@@ -184,7 +192,8 @@ void depth_cb_ffmpeg(freenect_device *dev, void *depth, uint32_t timestamp)
 void rgb_cb_ffmpeg(freenect_device *dev, void *rgb, uint32_t timestamp)
 {
 	double cur_time = get_time();
-	fprintf(index_fp, "r-%f-%u\n", cur_time, timestamp);
+	fprintf(index_fp, "r-%f-%u-%d-%d\n", cur_time, timestamp,
+            framestamp.take, framestamp.frame);
 
 	dump_ffmpeg_24(rgb_stream, timestamp, rgb,
                    freenect_get_current_video_mode(dev).bytes);
@@ -235,7 +244,11 @@ void init()
 		freenect_set_video_callback(dev, rgb_cb);
 	}
 	while (running && freenect_process_events(ctx) >= 0)
+    {
+        if (oscserver)
+            lo_server_recv_noblock(oscserver, 0);
 		snapshot_accel(dev);
+    }
 	freenect_stop_depth(dev);
 	freenect_stop_video(dev);
 	freenect_close_device(dev);
@@ -266,6 +279,14 @@ void signal_cleanup(int num)
 	signal(SIGINT, signal_cleanup);
 }
 
+static int frame_handler(const char *path, const char *types, lo_arg ** argv,
+                         int argc, lo_message data, void *user_data)
+{
+    framestamp.take = argv[0]->i;
+    framestamp.frame = argv[1]->i;
+    return 0;
+}
+
 void usage()
 {
 	printf("Records the Kinect sensor data to a directory\nResult can be used as input to Fakenect\nUsage:\n");
@@ -294,6 +315,14 @@ int main(int argc, char **argv)
 		usage();
 
 	signal(SIGINT, signal_cleanup);
+
+    oscserver = lo_server_new("7777", 0);
+    if (oscserver) {
+        lo_server_add_method(oscserver, "/frame", "ii", frame_handler, 0);
+    } else {
+        printf("Warning: could not create OSC server for "
+               "receiving frame stamps!\n");
+    }
 
 	if (use_ffmpeg) {
 		FILE *f;

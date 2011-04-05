@@ -12,7 +12,10 @@ set_target_properties ( fakenect PROPERTIES
 install (TARGETS fakenect
   DESTINATION "${PROJECT_LIBRARY_INSTALL_DIR}/fakenect")
 
+include_directories (${CMAKE_INSTALL_PREFIX}/include)
+link_directories (${CMAKE_INSTALL_PREFIX}/lib)
+
 add_executable(record record.c)
-target_link_libraries(record freenect m)
+target_link_libraries(record freenect lo m)
 install (TARGETS record
   DESTINATION bin)
