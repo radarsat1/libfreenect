@@ -184,7 +184,7 @@ void depth_cb_ffmpeg(freenect_device *dev, void *depth, uint32_t timestamp)
 void rgb_cb_ffmpeg(freenect_device *dev, void *rgb, uint32_t timestamp)
 {
 	double cur_time = get_time();
-	fprintf(index_fp, "d-%f-%u\n", cur_time, timestamp);
+	fprintf(index_fp, "r-%f-%u\n", cur_time, timestamp);
 
 	dump_ffmpeg_24(rgb_stream, timestamp, rgb,
                    freenect_get_current_video_mode(dev).bytes);
